@@ -16,6 +16,7 @@ from prophet import Prophet
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
+import pyarrow
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -26,12 +27,7 @@ st.title("📊 EV Project - Анализ и прогноз")
 st.write("## Расширенный анализ и моделирование данных")
 
 # --- Загрузка данных ---
-try:
-    df = pd.read_csv("Electric_Vehicle_Population_Data.csv")
-except FileNotFoundError:
-    st.error("Файл 'Electric_Vehicle_Population_Data.csv' не найден. Пожалуйста, убедитесь, что он загружен.")
-    st.stop()
-
+df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow") 
 # --- Предварительная обработка и фильтрация ---
 df.rename(columns={
     'Model Year': 'year',

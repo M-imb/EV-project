@@ -158,76 +158,94 @@ X_test_reg_scaled = scaler_reg.transform(X_test_reg)
 
 # --- ВКЛАДКА 2: ПРОГНОЗ (СРАВНЕНИЕ ПО ГОДАМ ТОП-3 А/М) ---
 with tab2:
-    st.header("Прогнозирование продаж по годам (топ‑3 авто)")
+    st.header("Прогноз количества зарегистрированных авто по годам (топ‑3 моделей)")
 
-    # Определяем топ‑3 авто по суммарным продажам в исторических данных
+    # Считаем "продажи" как количество записей по модели и году
+    sales_df = (
+        df.groupby(['Model', 'Model Year'])
+        .size()
+        .reset_index(name='Sales')
+    )
+
+    # Определяем топ‑3 модели по суммарным "продажам"
     top3_models = (
-        df.groupby('Model')['Sales']
+        sales_df.groupby('Model')['Sales']
         .sum()
         .sort_values(ascending=False)
         .head(3)
         .index.tolist()
     )
-    st.write(f"Топ‑3 модели по продажам: {', '.join(top3_models)}")
+    st.write(f"Топ‑3 модели по количеству регистраций: {', '.join(top3_models)}")
 
-    # Фильтруем данные только по этим моделям
-    df_top3 = df[df['Model'].isin(top3_models)]
+    # Фильтруем только топ‑3
+    df_top3 = sales_df[sales_df['Model'].isin(top3_models)]
 
-    # Обучаем модели
-    st.subheader("🛠️ Обучение моделей")
+    # Разделяем на признаки и целевую переменную
+    X = df_top3[['Model Year', 'Model']]
+    y = df_top3['Sales']
+
+    # One-hot кодирование модели
+    X_encoded = pd.get_dummies(X, columns=['Model'], drop_first=True)
+
+    # Тренировочный и тестовый набор
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_encoded, y, test_size=0.2, random_state=42
+    )
+
+    # Модели
     models_reg = {
         'Linear Regression': LinearRegression(),
         'CatBoost': CatBoostRegressor(verbose=0, random_state=42),
         'Random Forest': RandomForestRegressor(random_state=42)
     }
 
-    # Здесь предполагается, что X_train_reg_scaled, y_train_reg и т.д. уже подготовлены
     predictions_yearly = []
 
     for name, model in models_reg.items():
-        model.fit(X_train_reg_scaled, y_train_reg)
-        y_pred = model.predict(X_test_reg_scaled)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-        # Формируем DataFrame с прогнозом и годом
-        pred_df = pd.DataFrame({
-            'Year': X_test_reg['Year'],  # предполагается, что в X_test_reg есть колонка Year
-            'ModelName': X_test_reg['Model'],  # и колонка Model
-            'PredictedSales': y_pred
-        })
+        # Привязываем прогноз к исходным данным
+        pred_df = X_test.copy()
+        pred_df['PredictedSales'] = y_pred
 
-        # Оставляем только топ‑3 авто
-        pred_df = pred_df[pred_df['ModelName'].isin(top3_models)]
+        # Возвращаем обратно названия моделей
+        pred_df['Model Year'] = X_test['Model Year']
+        for col in [c for c in X_test.columns if c.startswith('Model_')]:
+            pred_df.loc[pred_df[col] == 1, 'Model'] = col.replace('Model_', '')
 
-        # Группируем по году и модели авто
+        # Если модель не закодирована (drop_first), заполняем базовую модель
+        pred_df['Model'] = pred_df['Model'].fillna(top3_models[0])
+
+        # Группируем по году и модели
         yearly_sales = (
-            pred_df.groupby(['Year', 'ModelName'])['PredictedSales']
+            pred_df.groupby(['Model Year', 'Model'])['PredictedSales']
             .sum()
             .reset_index()
         )
         yearly_sales['ML_Model'] = name
         predictions_yearly.append(yearly_sales)
 
-    # Объединяем прогнозы всех моделей
+    # Объединяем прогнозы
     predictions_yearly_df = pd.concat(predictions_yearly, ignore_index=True)
 
-    # 📊 Визуализация: группированный столбчатый график
-    st.subheader("📊 Сравнение прогнозов по годам для топ‑3 авто")
+    # 📊 Визуализация
+    st.subheader("📊 Сравнение прогнозов по годам для топ‑3 моделей")
     fig_yearly = px.bar(
         predictions_yearly_df,
-        x='Year',
+        x='Model Year',
         y='PredictedSales',
         color='ML_Model',
         barmode='group',
-        facet_row='ModelName',
-        title='Прогноз годовых продаж (топ‑3 авто)',
-        labels={'PredictedSales': 'Продажи', 'Year': 'Год'}
+        facet_row='Model',
+        title='Прогноз количества регистраций (топ‑3 моделей)',
+        labels={'PredictedSales': 'Количество', 'Model Year': 'Год'}
     )
     st.plotly_chart(fig_yearly, use_container_width=True)
 
-    # 📋 Таблица с прогнозами
+    # 📋 Таблица
     st.subheader("📋 Таблица прогнозов")
-    st.dataframe(predictions_yearly_df.sort_values(['ModelName', 'Year', 'ML_Model']))
-
+    st.dataframe(predictions_yearly_df.sort_values(['Model', 'Model Year', 'ML_Model']))
 # --- ВКЛАДКА 3: ПРОГНОЗ (ВРЕМЕННЫЕ РЯДЫ) ---
 with tab3:
     st.header("Прогнозирование цены (Временные ряды)")

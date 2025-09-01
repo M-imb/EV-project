@@ -3,22 +3,6 @@
 ⬆️ (Replace above with your app's name)
 ```
 
-Description of the app ...
-
-## Demo App
-
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://app-starter-kit.streamlit.app/)
-
-## GitHub Codespaces
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/streamlit/app-starter-kit?quickstart=1)
-
-## Section Heading
-
-This is filler text, please replace this with text for this section.
-
-## Further Reading
-
 Dataset contains the following columns, each representing different aspects of the electric vehicle (EV) population in the United States:
 
 •	VIN (1-10): Partial Vehicle Identification Number.
@@ -51,4 +35,20 @@ Dataset contains the following columns, each representing different aspects of t
 
 •	Electric Utility: The electric utility service provider for the vehicle’s location.
 
-•	2020 Census Tract: The census tract for the vehicle’s location.
+•	2020 Census Tract: The census tract for the vehicle’s location
+
+## Demo App
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://app-starter-kit.streamlit.app/)
+
+## GitHub Codespaces
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/streamlit/app-starter-kit?quickstart=1)
+
+## Section Heading
+
+This is filler text, please replace this with text for this section.
+
+## Further Reading
+
+.

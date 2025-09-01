@@ -2,10 +2,7 @@ streamlit>=1.26.0
 pandas
 numpy
 matplotlib
+plotly
 scikit-learn
-catboost
 statsmodels
 prophet
-pyarrow
-tensorflow
-seaborn==0.0

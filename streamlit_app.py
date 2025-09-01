@@ -25,290 +25,260 @@ st.write("## Расширенный анализ и моделирование �
 df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow")
 
 # --- Предварительная обработка и фильтрация ---
-df.columns = df.columns.str.replace(' ', '_')
-df['Base_MSRP'] = pd.to_numeric(df['Base_MSRP'], errors='coerce')
-df = df.dropna(subset=["Electric_Vehicle_Type", "Model_Year", "Make", "Electric_Range", "Base_MSRP", "Vehicle_Location"])
+    df.rename(columns={
+        'Model Year': 'year',
+        'Make': 'manufacturer',
+        'Model': 'model',
+        'Electric Vehicle Type': 'ev_type',
+        'Electric Range': 'ev_range',
+        'Clean Alternative Fuel Vehicle (CAFV) Eligibility': 'cafv_eligible',
+        'Postal Code': 'postal_code',
+        'City': 'city',
+        'State': 'state',
+        'County': 'county',
+        'Electric Utility': 'utility'
+    }, inplace=True)
 
-# Добавление новых признаков на основе цены
-df['MSRP_Category'] = pd.cut(df['Base_MSRP'],
-                             bins=[0, 30000, 50000, 80000, np.inf],
-                             labels=['Low', 'Mid', 'High', 'Premium'])
-df['EV_Type_Simplified'] = df['Electric_Vehicle_Type'].apply(lambda x: 'BEV' if 'Battery' in x else 'PHEV')
+    df.drop(columns=[
+        'VIN (1-10)',
+        'Base MSRP',
+        'Legislative District',
+        'DOL Vehicle ID',
+        'Vehicle Location',
+        '2020 Census Tract'
+    ], inplace=True, errors='ignore')
 
-st.sidebar.header("Фильтры данных")
-year_filter = st.sidebar.slider(
-    "Фильтр по году выпуска",
-    int(df["Model_Year"].min()),
-    int(df["Model_Year"].max()),
-    (2010, 2022),
-)
-df_filtered = df[(df["Model_Year"] >= year_filter[0]) & (df["Model_Year"] <= year_filter[1])]
+    df['year'] = pd.to_numeric(df['year'], errors='coerce')
+    df.dropna(subset=['year'], inplace=True)
+    df['year'] = df['year'].astype(int)
 
-if df_filtered.empty:
-    st.warning("Нет данных после фильтрации по году. Попробуйте изменить диапазон лет.")
+    return df
+
+df = load_data()
+if df.empty:
+    st.error("Нет данных для отображения")
     st.stop()
 
+# --- Временной ряд ---
+ts_df = df.groupby('year').size().reset_index(name='vehicle_count')
+ts_df['year'] = pd.to_datetime(ts_df['year'], format='%Y')
+ts_df.set_index('year', inplace=True)
+ts_df = ts_df.asfreq('YS').fillna(0)
 
-# --- Создание вкладок ---
-tab1, tab2, tab3 = st.tabs([
-    "📊 Анализ и визуализация",
-    "📉 Прогноз (Регрессия)",
-    "📈 Прогноз (Временные ряды)"
+# --- Вкладки ---
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📈 Общий обзор",
+    "🏭 Производители",
+    "🚗 Модели",
+    "⏳ Прогноз",
+    "📊 Временной анализ"
 ])
 
-
-# --- ВКЛАДКА 1: АНАЛИЗ И ВИЗУАЛИЗАЦИЯ ---
+# --- Вкладка 1 ---
 with tab1:
-    st.header("Обзор и визуализация данных")
+    st.subheader("Размерность данных после ETL")
+    st.write(df.shape)
+    st.subheader("Первые 5 строк")
+    st.dataframe(df.head())
+    st.subheader("Динамика регистраций по годам")
+    fig, ax = plt.subplots()
+    ts_df['vehicle_count'].plot(ax=ax, marker='o')
+    ax.set_ylabel("Количество EV")
+    ax.set_xlabel("Год")
+    st.pyplot(fig)
 
-    st.subheader("🔍 Случайные 10 строк отфильтрованных данных")
-    st.dataframe(df_filtered.sample(10), use_container_width=True)
-
-    st.subheader("📈 Основные графики")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig_sales_by_year = px.histogram(df_filtered, x='Model_Year', title='Продажи электромобилей по годам')
-        st.plotly_chart(fig_sales_by_year, use_container_width=True)
-
-    with col2:
-        top_makes = df_filtered['Make'].value_counts().nlargest(10).index
-        df_top_makes = df_filtered[df_filtered['Make'].isin(top_makes)]
-        fig_make_sales = px.histogram(
-            df_top_makes,
-            x='Make',
-            color='EV_Type_Simplified',
-            title='Продажи по производителям и типам EV',
-            barmode='group'
-        )
-        st.plotly_chart(fig_make_sales, use_container_width=True)
-
-    st.subheader("🗺️ Географическая карта продаж")
-    try:
-        location_counts = df_filtered['Vehicle_Location'].value_counts().reset_index()
-        location_counts.columns = ['location', 'count']
-
-        if 'State' in df_filtered.columns:
-            sales_by_state = df_filtered['State'].value_counts().reset_index()
-            sales_by_state.columns = ['State', 'Count']
-            fig_geo = px.choropleth(
-                sales_by_state,
-                locations='State',
-                locationmode="USA-states",
-                color='Count',
-                scope="usa",
-                color_continuous_scale="Viridis",
-                title='Продажи автомобилей по штатам США'
-            )
-            st.plotly_chart(fig_geo, use_container_width=True)
-        else:
-            st.warning("Для построения геокарты нужны данные о штатах. В исходном наборе их нет.")
-    except Exception as e:
-        st.error(f"Ошибка при построении геокарты: {e}")
-
-    st.subheader("🤝 Матрица корреляций")
-    correlation_df = df_filtered[['Model_Year', 'Electric_Range', 'Base_MSRP']].corr()
-    fig_corr = px.imshow(
-        correlation_df,
-        text_auto=True,
-        color_continuous_scale='RdBu_r',
-        title='Матрица корреляций'
-    )
-    st.plotly_chart(fig_corr, use_container_width=True)
-
-
-# --- Подготовка данных для регрессии и временных рядов ---
-df_regression = df_filtered.copy()
-df_regression['Make_encoded'] = ce.TargetEncoder(cols=['Make']).fit_transform(
-    df_regression['Make'], df_regression['Base_MSRP']
-)
-
-features_reg = ['Model_Year', 'Electric_Range', 'Make_encoded']
-target_reg = 'Base_MSRP'
-X_reg = df_regression[features_reg]
-y_reg = df_regression[target_reg]
-
-# Разделение данных для регрессии
-X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(
-    X_reg, y_reg, test_size=0.3, random_state=42
-)
-
-# Масштабирование
-scaler_reg = StandardScaler()
-X_train_reg_scaled = scaler_reg.fit_transform(X_train_reg)
-X_test_reg_scaled = scaler_reg.transform(X_test_reg)
-
-
-# --- ВКЛАДКА 2: ПРОГНОЗ (СРАВНЕНИЕ ПО ГОДАМ ТОП-3 А/М) ---
+# --- Вкладка 2 ---
 with tab2:
-    st.header("Прогноз количества зарегистрированных авто по годам (топ‑3 моделей)")
+    st.subheader("Топ‑5 производителей")
+    st.bar_chart(df['manufacturer'].value_counts().head(5))
+    st.subheader("Распределение по производителям")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sns.countplot(y='manufacturer', data=df, order=df['manufacturer'].value_counts().index[:10], ax=ax)
+    st.pyplot(fig)
 
-    # Считаем "продажи" как количество записей по модели и году
-    sales_df = (
-        df.groupby(['Model', 'Model Year'])
-        .size()
-        .reset_index(name='Sales')
-    )
-
-    # Определяем топ‑3 модели по суммарным "продажам"
-    top3_models = (
-        sales_df.groupby('Model')['Sales']
-        .sum()
-        .sort_values(ascending=False)
-        .head(3)
-        .index.tolist()
-    )
-    st.write(f"Топ‑3 модели по количеству регистраций: {', '.join(top3_models)}")
-
-    # Фильтруем только топ‑3
-    df_top3 = sales_df[sales_df['Model'].isin(top3_models)]
-
-    # Разделяем на признаки и целевую переменную
-    X = df_top3[['Model Year', 'Model']]
-    y = df_top3['Sales']
-
-    # One-hot кодирование модели
-    X_encoded = pd.get_dummies(X, columns=['Model'], drop_first=True)
-
-    # Тренировочный и тестовый набор
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_encoded, y, test_size=0.2, random_state=42
-    )
-
-    # Модели
-    models_reg = {
-        'Linear Regression': LinearRegression(),
-        'CatBoost': CatBoostRegressor(verbose=0, random_state=42),
-        'Random Forest': RandomForestRegressor(random_state=42)
-    }
-
-    predictions_yearly = []
-
-    for name, model in models_reg.items():
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
-        # Привязываем прогноз к исходным данным
-        pred_df = X_test.copy()
-        pred_df['PredictedSales'] = y_pred
-
-        # Возвращаем обратно названия моделей
-        pred_df['Model Year'] = X_test['Model Year']
-        for col in [c for c in X_test.columns if c.startswith('Model_')]:
-            pred_df.loc[pred_df[col] == 1, 'Model'] = col.replace('Model_', '')
-
-        # Если модель не закодирована (drop_first), заполняем базовую модель
-        pred_df['Model'] = pred_df['Model'].fillna(top3_models[0])
-
-        # Группируем по году и модели
-        yearly_sales = (
-            pred_df.groupby(['Model Year', 'Model'])['PredictedSales']
-            .sum()
-            .reset_index()
-        )
-        yearly_sales['ML_Model'] = name
-        predictions_yearly.append(yearly_sales)
-
-    # Объединяем прогнозы
-    predictions_yearly_df = pd.concat(predictions_yearly, ignore_index=True)
-
-    # 📊 Визуализация
-    st.subheader("📊 Сравнение прогнозов по годам для топ‑3 моделей")
-    fig_yearly = px.bar(
-        predictions_yearly_df,
-        x='Model Year',
-        y='PredictedSales',
-        color='ML_Model',
-        barmode='group',
-        facet_row='Model',
-        title='Прогноз количества регистраций (топ‑3 моделей)',
-        labels={'PredictedSales': 'Количество', 'Model Year': 'Год'}
-    )
-    st.plotly_chart(fig_yearly, use_container_width=True)
-
-    # 📋 Таблица
-    st.subheader("📋 Таблица прогнозов")
-    st.dataframe(predictions_yearly_df.sort_values(['Model', 'Model Year', 'ML_Model']))
-
-
-# --- ВКЛАДКА 3: ПРОГНОЗ (ВРЕМЕННЫЕ РЯДЫ) ---
+# --- Вкладка 3 ---
 with tab3:
-    st.header("Прогнозирование цены (Временные ряды)")
+    st.subheader("Топ‑5 моделей")
+    st.bar_chart(df['model'].value_counts().head(5))
+    st.subheader("Топ‑5 комбинаций 'Марка‑Модель'")
+    st.write(df.groupby(['manufacturer', 'model']).size().nlargest(5))
 
-    st.subheader("🔍 Декомпозиция временного ряда")
-    try:
-        decomposition = seasonal_decompose(ts, model='additive', period=1)
-        fig_decomp = go.Figure()
-        fig_decomp.add_trace(go.Scatter(x=decomposition.trend.index, y=decomposition.trend, mode='lines', name='Тренд'))
-        fig_decomp.add_trace(go.Scatter(x=decomposition.seasonal.index, y=decomposition.seasonal, mode='lines', name='Сезонность'))
-        fig_decomp.add_trace(go.Scatter(x=decomposition.resid.index, y=decomposition.resid, mode='markers', name='Остатки'))
-        fig_decomp.update_layout(title='Декомпозиция временного ряда', xaxis_title='Год', yaxis_title='Base MSRP')
-        st.plotly_chart(fig_decomp, use_container_width=True)
-    except Exception as e:
-        st.error(f"Ошибка декомпозиции: {e}")
+# --- Вкладка 4 ---
+with tab4:
+    st.subheader("Прогноз количества EV с помощью Prophet")
+    prophet_df = ts_df.reset_index().rename(columns={'year': 'ds', 'vehicle_count': 'y'})
+    model = Prophet(yearly_seasonality=True, daily_seasonality=False)
+    model.fit(prophet_df)
+    future = model.make_future_dataframe(periods=5, freq='Y')
+    forecast = model.predict(future)
+    st.pyplot(model.plot(forecast))
+    st.pyplot(model.plot_components(forecast))
 
-    st.subheader("🧐 Тест Дики-Фуллера")
-    adf_test = adfuller(ts)
-    st.write("Статистика теста:", adf_test[0])
-    st.write("p-value:", adf_test[1])
-    st.write("Критические значения:", adf_test[4])
-    if adf_test[1] < 0.05:
-        st.success("Ряд стационарен (p-value < 0.05).")
+# --- Вкладка 5: Временной анализ ---
+with tab5:
+    st.subheader("Декомпозиция временного ряда")
+    decomposition = seasonal_decompose(ts_df['vehicle_count'], model='additive', period=1)
+    fig, axes = plt.subplots(4, 1, figsize=(10, 6), sharex=True)
+    decomposition.observed.plot(ax=axes[0], title='Наблюдаемый ряд')
+    decomposition.trend.plot(ax=axes[1], title='Тренд')
+    decomposition.seasonal.plot(ax=axes[2], title='Сезонность')
+    decomposition.resid.plot(ax=axes[3], title='Остатки')
+    plt.tight_layout()
+    st.pyplot(fig)
+
+    st.subheader("Тест Дики–Фуллера")
+    result = adfuller(ts_df['vehicle_count'])
+    st.write(f"ADF Statistic: {result[0]:.4f}")
+    st.write(f"p-value: {result[1]:.4f}")
+    st.write("Critical Values:", result[4])
+    if result[1] <= 0.05:
+        st.success("Ряд является стационарным (p-value <= 0.05)")
     else:
-        st.warning("Ряд не стационарен (p-value ≥ 0.05). Рассмотрим дифференцирование.")
+        st.warning("Ряд не является стационарным (p-value > 0.05)")
 
-    st.subheader("📈 Модель ARIMA")
-    try:
-        st.write("Графики ACF и PACF для подбора параметров ARIMA:")
-        fig_acf = go.Figure(data=go.Scatter(x=np.arange(len(acf(ts, nlags=5))), y=acf(ts, nlags=5)))
-        fig_acf.update_layout(title='ACF Plot', xaxis_title='Lag', yaxis_title='ACF')
-        st.plotly_chart(fig_acf, use_container_width=True)
+    st.subheader("ACF и PACF")
+    fig, axes = plt.subplots(2, 1, figsize=(10, 6))
+    plot_acf(ts_df['vehicle_count'], ax=axes[0])
+    axes[0].set_title('Автокорреляция (ACF)')
+    plot_pacf(ts_df['vehicle_count'], ax=axes[1])
+    axes[1].set_title('Частичная автокорреляция (PACF)')
+    plt.tight_layout()
+    st.pyplot(fig)
 
-        fig_pacf = go.Figure(data=go.Scatter(x=np.arange(len(pacf(ts, nlags=5))), y=pacf(ts, nlags=5)))
-        fig_pacf.update_layout(title='PACF Plot', xaxis_title='Lag', yaxis_title='PACF')
-        st.plotly_chart(fig_pacf, use_container_width=True)
+    st.info("ACF-график медленно затухает → наличие тренда. PACF показывает сильные корреляции на первых лагах.")
 
-        p = st.number_input("Выберите значение p (AR):", min_value=0, max_value=5, value=1, step=1)
-        d = st.number_input("Выберите значение d (I):", min_value=0, max_value=2, value=0, step=1)
-        q = st.number_input("Выберите значение q (MA):", min_value=0, max_value=5, value=0, step=1)
+    st.subheader("Оценка Prophet (train/test split)")
+    prophet_df = ts_df.reset_index().rename(columns={'year': 'ds', 'vehicle_count': 'y'})
+    train_size = int(len(prophet_df) * 0.7)
+    prophet_train = prophet_df.iloc[:train_size]
+    prophet_test = prophet_df.iloc[train_size:]
+    m = Prophet()
+    m.fit(prophet_train)
+    future = m.make_future_dataframe(periods=len(prophet_test), freq='YS')
+    forecast = m.predict(future)
+    prophet_pred = forecast['yhat'].iloc[train_size:]
+    rmse = np.sqrt(mean_squared_error(prophet_test['y'], prophet_pred))
+    mae = mean_absolute_error(prophet_test['y'], prophet_pred)
+    r2 = r2_score(prophet_test['y'], prophet_pred)
+    st.write(pd.DataFrame([[ 'Prophet', rmse, mae, r2 ]], columns=['Model','RMSE','MAE','R2']))
+    st.pyplot(m.plot(forecast))
+    st.pyplot(m.plot_components(forecast))
 
-        model_arima = ARIMA(train_ts, order=(p, d, q))
-        model_arima_fit = model_arima.fit()
-        predictions_arima = model_arima_fit.forecast(steps=len(test_ts))
+# --- Вкладка 6: Сравнение моделей ---
+with tab6:
+    st.subheader("Сравнение моделей прогнозирования")
 
-        fig_arima = go.Figure()
-        fig_arima.add_trace(go.Scatter(x=train_ts.index, y=train_ts, mode='lines', name='Обучающая выборка'))
-        fig_arima.add_trace(go.Scatter(x=test_ts.index, y=test_ts, mode='lines', name='Тестовая выборка'))
-        fig_arima.add_trace(go.Scatter(x=test_ts.index, y=predictions_arima, mode='lines', name='Прогноз ARIMA'))
-        fig_arima.update_layout(title=f'Прогноз ARIMA (p={p}, d={d}, q={q})', xaxis_title='Год', yaxis_title='Base MSRP')
-        st.plotly_chart(fig_arima, use_container_width=True)
+    # --- Разделение данных ---
+    train_size = int(len(ts_df) * 0.7)
+    ts_train = ts_df.iloc[:train_size]
+    ts_test = ts_df.iloc[train_size:]
 
-        rmse_arima = np.sqrt(mean_squared_error(test_ts, predictions_arima))
-        st.write(f'RMSE для ARIMA: {rmse_arima:.2f}')
-    except Exception as e:
-        st.error(f"Ошибка при построении модели ARIMA: {e}")
+    metrics_df = pd.DataFrame(columns=['Model', 'RMSE', 'MAE', 'R2'])
 
-    st.subheader("🔮 Модель Prophet")
-    try:
-        df_prophet = df_ts.reset_index().rename(columns={'Model_Year': 'ds', 'Base_MSRP': 'y'})
-        model_prophet = Prophet()
-        model_prophet.fit(df_prophet[:-len(test_ts)])
+    def evaluate_model(model_name, y_true, y_pred):
+        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return pd.Series([model_name, rmse, mae, r2], index=metrics_df.columns)
 
-        future = model_prophet.make_future_dataframe(periods=len(test_ts), freq='YS')
-        forecast = model_prophet.predict(future)
+    # --- 1. Регрессии ---
+    X = ts_df.index.year.values.reshape(-1, 1)
+    y = ts_df['vehicle_count'].values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, shuffle=False)
 
-        fig_prophet = go.Figure()
-        fig_prophet.add_trace(go.Scatter(x=df_prophet['ds'][:-len(test_ts)], y=df_prophet['y'][:-len(test_ts)],
-                                         mode='lines', name='Обучающая выборка'))
-        fig_prophet.add_trace(go.Scatter(x=df_prophet['ds'][-len(test_ts):], y=df_prophet['y'][-len(test_ts):],
-                                         mode='lines', name='Тестовая выборка'))
-        fig_prophet.add_trace(go.Scatter(x=forecast['ds'][-len(test_ts):], y=forecast['yhat'][-len(test_ts):],
-                                         mode='lines', name='Прогноз Prophet'))
-        fig_prophet.update_layout(title='Прогноз Prophet', xaxis_title='Год', yaxis_title='Base MSRP')
-        st.plotly_chart(fig_prophet, use_container_width=True)
+    lr_model = LinearRegression()
+    rf_model = RandomForestRegressor(random_state=42)
+    cb_model = CatBoostRegressor(random_state=42, verbose=0)
 
-        predictions_prophet = forecast['yhat'][-len(test_ts):].values
-        rmse_prophet = np.sqrt(mean_squared_error(test_ts, predictions_prophet))
-        st.write(f'RMSE для Prophet: {rmse_prophet:.2f}')
-    except Exception as e:
-        st.error(f"Ошибка при построении модели Prophet: {e}")
+    lr_model.fit(X_train, y_train)
+    rf_model.fit(X_train, y_train)
+    cb_model.fit(X_train, y_train)
+
+    lr_pred = lr_model.predict(X_test)
+    rf_pred = rf_model.predict(X_test)
+    cb_pred = cb_model.predict(X_test)
+
+    metrics_df = pd.concat([
+        metrics_df,
+        evaluate_model('Linear Regression', y_test, lr_pred).to_frame().T,
+        evaluate_model('Random Forest', y_test, rf_pred).to_frame().T,
+        evaluate_model('CatBoost', y_test, cb_pred).to_frame().T
+    ], ignore_index=True)
+
+    # --- 2. ARIMA ---
+    arima_model = ARIMA(ts_train['vehicle_count'], order=(1, 1, 1))
+    arima_fit = arima_model.fit()
+    arima_pred = arima_fit.forecast(len(ts_test))
+    metrics_df = pd.concat([metrics_df, evaluate_model('ARIMA', ts_test['vehicle_count'], arima_pred).to_frame().T], ignore_index=True)
+
+    # --- 3. LSTM ---
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(ts_df)
+    train_data = scaled_data[:train_size]
+    test_data = scaled_data[train_size:]
+
+    def create_sequences(data, seq_length):
+        X, y = [], []
+        for i in range(len(data) - seq_length):
+            X.append(data[i:i + seq_length])
+            y.append(data[i + seq_length])
+        return np.array(X), np.array(y)
+
+    seq_length = 3
+    X_train_lstm, y_train_lstm = create_sequences(train_data, seq_length)
+    X_test_lstm, y_test_lstm = create_sequences(test_data, seq_length)
+
+    model_lstm = Sequential()
+    model_lstm.add(LSTM(50, activation='relu', input_shape=(seq_length, 1)))
+    model_lstm.add(Dense(1))
+    model_lstm.compile(optimizer='adam', loss='mean_squared_error')
+    model_lstm.fit(X_train_lstm, y_train_lstm, epochs=100, batch_size=1, verbose=0)
+
+    test_predictions_lstm = model_lstm.predict(X_test_lstm)
+    test_predictions_lstm = scaler.inverse_transform(test_predictions_lstm)
+    y_test_lstm = scaler.inverse_transform(y_test_lstm)
+
+    metrics_df = pd.concat([metrics_df, evaluate_model('LSTM', y_test_lstm, test_predictions_lstm).to_frame().T], ignore_index=True)
+
+    # --- 4. Prophet ---
+    prophet_df = ts_df.reset_index().rename(columns={'year': 'ds', 'vehicle_count': 'y'})
+    prophet_train = prophet_df.iloc[:train_size]
+    prophet_test = prophet_df.iloc[train_size:]
+
+    m = Prophet()
+    m.fit(prophet_train)
+
+    future = m.make_future_dataframe(periods=len(prophet_test), freq='YS')
+    forecast = m.predict(future)
+    prophet_pred = forecast['yhat'].iloc[train_size:]
+    metrics_df = pd.concat([metrics_df, evaluate_model('Prophet', prophet_test['y'], prophet_pred).to_frame().T], ignore_index=True)
+
+    # --- Вывод метрик ---
+    st.dataframe(metrics_df.round(2))
+
+    # --- График ---
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(ts_train.index, ts_train['vehicle_count'], label='Train', color='black')
+    ax.plot(ts_test.index, ts_test['vehicle_count'], label='Test', color='gray')
+    ax.plot(ts_test.index, lr_pred, label='Linear Regression', color='blue')
+    ax.plot(ts_test.index, rf_pred, label='Random Forest', color='green')
+    ax.plot(ts_test.index, cb_pred, label='CatBoost', color='purple')
+    ax.plot(ts_test.index, arima_pred, label='ARIMA', color='red')
+    ax.plot(ts_test.index[seq_length:], test_predictions_lstm.flatten(), label='LSTM', color='cyan')
+    ax.plot(prophet_test['ds'], prophet_pred, label='Prophet', color='orange')
+    ax.set_title('Сравнение прогнозов всех моделей')
+    ax.set_xlabel('Год')
+    ax.set_ylabel('Количество EV')
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+
+    # --- Выводы ---
+    st.markdown("""
+    **Выводы:**
+    1. Ряд имеет сильный восходящий тренд — простые модели (Linear Regression) его улавливают.
+    2. CatBoost и Random Forest лучше справляются с нелинейностями.
+    3. ARIMA учитывает тренд и автокорреляцию.
+    4. LSTM требует больше данных, но тоже даёт неплохой результат.
+    5. Prophet автоматически находит тренды и сезонность, показывая высокую точность.
+    """)

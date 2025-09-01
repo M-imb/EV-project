@@ -292,29 +292,29 @@ with tab6:
     y = df["Sales"].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
-    results = {}
+    results = []
 
     # ----- Linear Regression -----
     lr = LinearRegression()
     lr.fit(X_train, y_train)
     y_pred_lr = lr.predict(X_test)
-    results["Linear Regression"] = {
+    results.append({
+        "Model": "Linear Regression",
         "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_lr)),
         "MAE": mean_absolute_error(y_test, y_pred_lr),
-        "R²": r2_score(y_test, y_pred_lr),
-        "y_pred": y_pred_lr,
-    }
-
+        "R²": r2_score(y_test, y_pred_lr)
+    })
+    
     # ----- Random Forest -----
     rf = RandomForestRegressor(n_estimators=100, random_state=42)
     rf.fit(X_train, y_train)
     y_pred_rf = rf.predict(X_test)
-    results["Random Forest"] = {
+    results.append({
+        "Model": "Random Forest",
         "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_rf)),
         "MAE": mean_absolute_error(y_test, y_pred_rf),
-        "R²": r2_score(y_test, y_pred_rf),
-        "y_pred": y_pred_rf,
-    }
+        "R²": r2_score(y_test, y_pred_rf)
+    })
 
     # ----- CatBoost -----
     try:
@@ -361,6 +361,14 @@ with tab6:
     except:
         st.warning("Holt-Winters не смог обучиться")
 
+    # В таблицу
+    metrics_df = pd.DataFrame(results)
+    st.dataframe(metrics_df.style.highlight_min(axis=0, color="lightgreen"))
+    
+    # Топ-3 по R²
+    top_models = metrics_df.sort_values(by="R²", ascending=False).head(3)
+    st.write("🔥 Топ-3 модели:", ", ".join(top_models["Model"].tolist()))
+
     # ===== ВИЗУАЛ =====
     st.write("📊 Метрики моделей:")
     col1, col2, col3 = st.columns(3)
@@ -374,10 +382,15 @@ with tab6:
     st.dataframe(metrics_df.style.highlight_min(axis=0, color="lightgreen"))
 
     # График прогнозов
-    fig, ax = plt.subplots(figsize=(10,5))
-    ax.plot(range(len(y)), y, label="Фактические", color="black")
-    for model, r in results.items():
-        ax.plot(range(len(y_train), len(y)), r["y_pred"], label=model)
-    ax.legend()
-    ax.set_title("Сравнение прогнозов моделей")
-    st.pyplot(fig)
+    fig = px.line(title="Сравнение прогнозов моделей")
+    fig.add_scatter(x=list(range(len(y))), y=y, mode="lines", name="Фактические", line=dict(color="black"))
+    
+    for model, r in zip(metrics_df["Model"], results):
+        fig.add_scatter(
+            x=list(range(len(y_train), len(y))),
+            y=r["y_pred"],
+            mode="lines+markers",
+            name=model
+        )
+    
+    st.plotly_chart(fig, use_container_width=True)

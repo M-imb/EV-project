@@ -204,7 +204,7 @@ with tab3:
 
     fig_forecast = px.line(forecast, x='ds', y='yhat', title=f"Прогноз Prophet для {selected_model}")
     fig_forecast.add_scatter(x=df_model_prophet['ds'], y=df_model_prophet['y'], mode='lines+markers', name='Исторические данные')
-    st.plotly_chart(fig_forecast, use_container_width=True))
+    st.plotly_chart(fig_forecast, use_container_width=True)
 
 
 

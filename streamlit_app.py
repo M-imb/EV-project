@@ -181,15 +181,15 @@ with tab3:
     top_models = df['model'].value_counts().head(3).index
     st.write("Топ-3 модели:", ", ".join(top_models))
 
-    df_top_models = df[df['Model'].isin(top_models)]
-    model_trends = df_top_models.groupby(['Year', 'Model']).size().reset_index(name='Count')
+    df_top_models = df[df['model'].isin(top_models)]
+    model_trends = df_top_models.groupby(['Year', 'model']).size().reset_index(name='Count')
 
-    fig3 = px.line(model_trends, x='Year', y='Count', color='Model', title="Динамика продаж топ-3 моделей")
+    fig3 = px.line(model_trends, x='Year', y='Count', color='model', title="Динамика продаж топ-3 моделей")
     st.plotly_chart(fig3, use_container_width=True)
 
     # Выбор модели для прогноза
     selected_model = st.selectbox("Выберите модель для прогноза:", top_models)
-    df_model = df_top_models[df_top_models['Model'] == selected_model].groupby('Year').size().reset_index(name='Count')
+    df_model = df_top_models[df_top_models['model'] == selected_model].groupby('Year').size().reset_index(name='Count')
 
     horizon = st.slider("Горизонт прогноза (лет)", 1, 10, 5)
 
@@ -299,7 +299,7 @@ with tab6:
     lr.fit(X_train, y_train)
     y_pred_lr = lr.predict(X_test)
     results.append({
-        "Model": "Linear Regression",
+        "model": "Linear Regression",
         "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_lr)),
         "MAE": mean_absolute_error(y_test, y_pred_lr),
         "R²": r2_score(y_test, y_pred_lr)
@@ -310,7 +310,7 @@ with tab6:
     rf.fit(X_train, y_train)
     y_pred_rf = rf.predict(X_test)
     results.append({
-        "Model": "Random Forest",
+        "model": "Random Forest",
         "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_rf)),
         "MAE": mean_absolute_error(y_test, y_pred_rf),
         "R²": r2_score(y_test, y_pred_rf)
@@ -367,7 +367,7 @@ with tab6:
     
     # Топ-3 по R²
     top_models = metrics_df.sort_values(by="R²", ascending=False).head(3)
-    st.write("🔥 Топ-3 модели:", ", ".join(top_models["Model"].tolist()))
+    st.write("🔥 Топ-3 модели:", ", ".join(top_models["model"].tolist()))
 
     # ===== ВИЗУАЛ =====
     st.write("📊 Метрики моделей:")

@@ -95,32 +95,143 @@ with tab1:
 
 # --- Вкладка 2 ---
 with tab2:
-    st.subheader("Топ-10 производителей")
+    st.subheader("Топ-5 производителей")
     fig, ax = plt.subplots(figsize=(5,2))
-    manufacturer_counts = df['manufacturer'].value_counts().head(10)
+    manufacturer_counts = df['manufacturer'].value_counts().head(5)
     ax.barh(manufacturer_counts.index, manufacturer_counts.values)
     ax.set_xlabel("Количество")
     ax.set_ylabel("Производитель")
     st.pyplot(fig, clear_figure=True)
 
+    # --- Топ-3 марки по годам ---
+    st.subheader("Динамика продаж топ-3 марок")
+    top3_brands = df['manufacturer'].value_counts().head(3).index.tolist()
+    brand_data = (
+        df[df['manufacturer'].isin(top3_brands)]
+        .groupby(['year','manufacturer'])
+        .size()
+        .reset_index(name="sales")
+    )
+    fig, ax = plt.subplots(figsize=(6,3))
+    for brand in top3_brands:
+        subset = brand_data[brand_data['manufacturer']==brand]
+        ax.plot(subset['year'], subset['sales'], marker="o", label=brand)
+    ax.set_title("Исторические продажи топ-3 марок")
+    ax.legend()
+    st.pyplot(fig, clear_figure=True)
+
+    # --- Прогноз по топ-3 ---
+    st.subheader("Прогноз продаж топ-3 марок")
+    model_choice = st.selectbox("Выбери модель:", ["Prophet","Linear Regression","Random Forest"], key="brand_model")
+    horizon = st.slider("Горизонт прогноза (лет)", 1, 5, 3, 1, key="brand_horizon")
+
+    for brand in top3_brands:
+        st.markdown(f"### {brand}")
+        subset = brand_data[brand_data["manufacturer"]==brand][["year","sales"]].copy()
+        subset = subset.rename(columns={"year":"ds","sales":"y"})
+
+        if model_choice=="Prophet":
+            m = Prophet(yearly_seasonality=True)
+            m.fit(subset)
+            future = m.make_future_dataframe(periods=horizon, freq="Y")
+            forecast = m.predict(future)
+            fig1 = m.plot(forecast, xlabel="Год", ylabel="Продажи")
+            st.pyplot(fig1, clear_figure=True)
+
+        elif model_choice=="Linear Regression":
+            X = np.array(subset["ds"].dt.year).reshape(-1,1)
+            y = subset["y"].values
+            lr = LinearRegression().fit(X,y)
+            future_years = np.arange(subset["ds"].dt.year.max()+1, subset["ds"].dt.year.max()+horizon+1)
+            future_pred = lr.predict(future_years.reshape(-1,1))
+
+            fig2, ax2 = plt.subplots(figsize=(6,3))
+            ax2.plot(subset["ds"].dt.year, y, marker="o", label="Факт")
+            ax2.plot(future_years, future_pred, marker="x", linestyle="--", label="Прогноз")
+            ax2.legend(); ax2.set_title(f"Прогноз продаж {brand}")
+            st.pyplot(fig2, clear_figure=True)
+
+            # Метрики качества на последних 20% данных
+            X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.2,shuffle=False)
+            y_pred = lr.predict(X_test)
+            st.caption(f"MAE={mean_absolute_error(y_test,y_pred):.2f}, RMSE={np.sqrt(mean_squared_error(y_test,y_pred)):.2f}, R²={r2_score(y_test,y_pred):.2f}")
+
+        elif model_choice=="Random Forest":
+            X = np.array(subset["ds"].dt.year).reshape(-1,1)
+            y = subset["y"].values
+            rf = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42).fit(X,y)
+            future_years = np.arange(subset["ds"].dt.year.max()+1, subset["ds"].dt.year.max()+horizon+1)
+            future_pred = rf.predict(future_years.reshape(-1,1))
+
+            fig3, ax3 = plt.subplots(figsize=(6,3))
+            ax3.plot(subset["ds"].dt.year, y, marker="o", label="Факт")
+            ax3.plot(future_years, future_pred, marker="x", linestyle="--", label="Прогноз")
+            ax3.legend(); ax3.set_title(f"Прогноз продаж {brand}")
+            st.pyplot(fig3, clear_figure=True)
+
+            # Метрики качества на последних 20% данных
+            X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.2,shuffle=False)
+            y_pred = rf.predict(X_test)
+            st.caption(f"MAE={mean_absolute_error(y_test,y_pred):.2f}, RMSE={np.sqrt(mean_squared_error(y_test,y_pred)):.2f}, R²={r2_score(y_test,y_pred):.2f}")
+
 # --- Вкладка 3 ---
 with tab3:
-    st.subheader("Топ-10 моделей")
-    st.bar_chart(df['model'].value_counts().head(10))
-    st.subheader("Топ-5 комбинаций 'Марка-Модель'")
-    st.write(df.groupby(['manufacturer','model']).size().nlargest(5))
+    st.header("📊 Топ-3 модели по продажам")
+
+    top_models = df['Model'].value_counts().head(3).index
+    st.write("Топ-3 модели:", ", ".join(top_models))
+
+    df_top_models = df[df['Model'].isin(top_models)]
+    model_trends = df_top_models.groupby(['Year', 'Model']).size().reset_index(name='Count')
+
+    fig3 = px.line(model_trends, x='Year', y='Count', color='Model', title="Динамика продаж топ-3 моделей")
+    st.plotly_chart(fig3, use_container_width=True)
+
+    # Выбор модели для прогноза
+    selected_model = st.selectbox("Выберите модель для прогноза:", top_models)
+    df_model = df_top_models[df_top_models['Model'] == selected_model].groupby('Year').size().reset_index(name='Count')
+
+    horizon = st.slider("Горизонт прогноза (лет)", 1, 10, 5)
+
+    # Prophet
+    from prophet import Prophet
+    df_model_prophet = df_model.rename(columns={'Year': 'ds', 'Count': 'y'})
+    df_model_prophet['ds'] = pd.to_datetime(df_model_prophet['ds'], format='%Y')
+    m = Prophet()
+    m.fit(df_model_prophet)
+    future = m.make_future_dataframe(periods=horizon, freq='Y')
+    forecast = m.predict(future)
+
+    fig_forecast = px.line(forecast, x='ds', y='yhat', title=f"Прогноз Prophet для {selected_model}")
+    fig_forecast.add_scatter(x=df_model_prophet['ds'], y=df_model_prophet['y'], mode='lines+markers', name='Исторические данные')
+    st.plotly_chart(fig_forecast, use_container_width=True))
+
+
 
 # --- Вкладка 4 ---
 with tab4:
-    st.subheader("Прогноз количества EV (Prophet)")
-    if st.button("Запустить Prophet"):
-        prophet_df = ts_df.reset_index().rename(columns={'year': 'ds','vehicle_count':'y'})
-        model = Prophet(yearly_seasonality=True, daily_seasonality=False)
-        model.fit(prophet_df)
-        future = model.make_future_dataframe(periods=5, freq='Y')
-        forecast = model.predict(future)
-        st.pyplot(model.plot(forecast), clear_figure=True)
-        st.pyplot(model.plot_components(forecast), clear_figure=True)
+    st.header("🔮 Прогноз Prophet (по типу EV)")
+
+    top_ev_types = df['Electric Vehicle Type'].value_counts().index
+    ev_choice = st.selectbox("Выберите тип EV для прогноза:", top_ev_types)
+
+    df_ev = df[df['Electric Vehicle Type'] == ev_choice].groupby('Year').size().reset_index(name='Count')
+    horizon_ev = st.slider("Горизонт прогноза (лет)", 1, 15, 7)
+
+    if len(df_ev) > 2:
+        df_ev_prophet = df_ev.rename(columns={'Year': 'ds', 'Count': 'y'})
+        df_ev_prophet['ds'] = pd.to_datetime(df_ev_prophet['ds'], format='%Y')
+
+        m_ev = Prophet()
+        m_ev.fit(df_ev_prophet)
+        future_ev = m_ev.make_future_dataframe(periods=horizon_ev, freq='Y')
+        forecast_ev = m_ev.predict(future_ev)
+
+        fig_ev = px.line(forecast_ev, x='ds', y='yhat', title=f"Прогноз для {ev_choice}")
+        fig_ev.add_scatter(x=df_ev_prophet['ds'], y=df_ev_prophet['y'], mode='lines+markers', name='История')
+        st.plotly_chart(fig_ev, use_container_width=True)
+    else:
+        st.warning("Недостаточно данных для прогноза.")
 
 # --- Вкладка 5 ---
 with tab5:
@@ -150,79 +261,123 @@ with tab5:
     plt.tight_layout()
     st.pyplot(fig, clear_figure=True)
 
+    st.subheader("Прогнозы ARIMA и Holt-Winters")
+
+    hw_model = ExponentialSmoothing(ts_df['vehicle_count'], trend='add').fit()
+    hw_forecast = hw_model.forecast(5)
+
+    arima_model = ARIMA(ts_df['vehicle_count'], order=(1,1,1)).fit()
+    arima_forecast = arima_model.forecast(steps=5)
+
+    fig, ax = plt.subplots(figsize=(6,3))
+    ts_df['vehicle_count'].plot(ax=ax, label="История")
+    hw_forecast.plot(ax=ax, label="Holt-Winters")
+    arima_forecast.plot(ax=ax, label="ARIMA")
+    ax.legend()
+    st.pyplot(fig)
+
+    # Остатки ARIMA
+    st.subheader("Остатки ARIMA")
+    residuals = arima_model.resid
+    fig_res, ax_res = plt.subplots(figsize=(6,2))
+    residuals.plot(ax=ax_res)
+    st.pyplot(fig_res)
+
 # --- Вкладка 6 ---
 with tab6:
-    st.subheader("Сравнение моделей (быстрые)")
-    train_size = int(len(ts_df)*0.8)
-    ts_train, ts_test = ts_df.iloc[:train_size], ts_df.iloc[train_size:]
+    st.subheader("Сравнение моделей (LR, RF, CatBoost, ARIMA, Holt-Winters)")
 
-    metrics_df = pd.DataFrame(columns=['Model','RMSE','MAE','R2'])
+    # Разделение данных
+    X = np.arange(len(df)).reshape(-1, 1)
+    y = df["Sales"].values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
-    def evaluate(model, y_true, y_pred):
-        return pd.Series([
-            model,
-            np.sqrt(mean_squared_error(y_true,y_pred)),
-            mean_absolute_error(y_true,y_pred),
-            r2_score(y_true,y_pred)
-        ], index=metrics_df.columns)
+    results = {}
 
-    # Линейная, RF, CatBoost
-    X = ts_df.index.year.values.reshape(-1,1)
-    y = ts_df['vehicle_count'].values
-    X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.2,shuffle=False)
-
-    lr = LinearRegression().fit(X_train,y_train)
-    rf = RandomForestRegressor(random_state=42).fit(X_train,y_train)
-    cb = CatBoostRegressor(random_state=42,verbose=0).fit(X_train,y_train)
-
-    preds = {
-        "Linear Regression": lr.predict(X_test),
-        "Random Forest": rf.predict(X_test),
-        "CatBoost": cb.predict(X_test),
-        "ARIMA": ARIMA(ts_train['vehicle_count'],order=(1,1,1)).fit().forecast(len(ts_test)),
-        "Holt-Winters": ExponentialSmoothing(ts_train['vehicle_count'],trend='add').fit().forecast(len(ts_test))
+    # ----- Linear Regression -----
+    lr = LinearRegression()
+    lr.fit(X_train, y_train)
+    y_pred_lr = lr.predict(X_test)
+    results["Linear Regression"] = {
+        "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_lr)),
+        "MAE": mean_absolute_error(y_test, y_pred_lr),
+        "R²": r2_score(y_test, y_pred_lr),
+        "y_pred": y_pred_lr,
     }
 
-    for name,pred in preds.items():
-        metrics_df = pd.concat([metrics_df, evaluate(name, ts_test['vehicle_count'], pred).to_frame().T])
+    # ----- Random Forest -----
+    rf = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf.fit(X_train, y_train)
+    y_pred_rf = rf.predict(X_test)
+    results["Random Forest"] = {
+        "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_rf)),
+        "MAE": mean_absolute_error(y_test, y_pred_rf),
+        "R²": r2_score(y_test, y_pred_rf),
+        "y_pred": y_pred_rf,
+    }
 
-    st.dataframe(metrics_df.round(2).sort_values(by="R2",ascending=False))
+    # ----- CatBoost -----
+    try:
+        from catboost import CatBoostRegressor
+        cb = CatBoostRegressor(iterations=200, depth=6, silent=True, random_state=42)
+        cb.fit(X_train, y_train)
+        y_pred_cb = cb.predict(X_test)
+        results["CatBoost"] = {
+            "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_cb)),
+            "MAE": mean_absolute_error(y_test, y_pred_cb),
+            "R²": r2_score(y_test, y_pred_cb),
+            "y_pred": y_pred_cb,
+        }
+    except:
+        st.warning("CatBoost не установлен")
 
-    st.subheader("График прогнозов")
-    fig, ax = plt.subplots(figsize=(5,2))
-    ax.plot(ts_df.index, ts_df['vehicle_count'], label="Фактические", color="black")
-    for name,pred in preds.items():
-        ax.plot(ts_test.index, pred, linestyle="--", label=name)
+    # ----- ARIMA -----
+    from statsmodels.tsa.arima.model import ARIMA
+    try:
+        arima_model = ARIMA(y_train, order=(2,1,2))
+        arima_res = arima_model.fit()
+        y_pred_arima = arima_res.forecast(len(y_test))
+        results["ARIMA"] = {
+            "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_arima)),
+            "MAE": mean_absolute_error(y_test, y_pred_arima),
+            "R²": r2_score(y_test, y_pred_arima),
+            "y_pred": y_pred_arima,
+        }
+    except:
+        st.warning("ARIMA не смогла обучиться")
+
+    # ----- Holt-Winters -----
+    try:
+        from statsmodels.tsa.holtwinters import ExponentialSmoothing
+        hw = ExponentialSmoothing(y_train, trend="add", seasonal=None)
+        hw_fit = hw.fit()
+        y_pred_hw = hw_fit.forecast(len(y_test))
+        results["Holt-Winters"] = {
+            "RMSE": np.sqrt(mean_squared_error(y_test, y_pred_hw)),
+            "MAE": mean_absolute_error(y_test, y_pred_hw),
+            "R²": r2_score(y_test, y_pred_hw),
+            "y_pred": y_pred_hw,
+        }
+    except:
+        st.warning("Holt-Winters не смог обучиться")
+
+    # ===== ВИЗУАЛ =====
+    st.write("📊 Метрики моделей:")
+    col1, col2, col3 = st.columns(3)
+    best_model = min(results, key=lambda m: results[m]["RMSE"])
+    col1.metric("📉 Лучшая модель", best_model, "")
+    col2.metric("RMSE (↓)", f"{results[best_model]['RMSE']:.2f}")
+    col3.metric("MAE (↓)", f"{results[best_model]['MAE']:.2f}")
+
+    # Таблица с результатами
+    metrics_df = pd.DataFrame({m: {"RMSE": r["RMSE"], "MAE": r["MAE"], "R²": r["R²"]} for m, r in results.items()}).T
+    st.dataframe(metrics_df.style.highlight_min(axis=0, color="lightgreen"))
+
+    # График прогнозов
+    fig, ax = plt.subplots(figsize=(10,5))
+    ax.plot(range(len(y)), y, label="Фактические", color="black")
+    for model, r in results.items():
+        ax.plot(range(len(y_train), len(y)), r["y_pred"], label=model)
     ax.legend()
-    ax.set_title("Сравнение моделей")
-    st.pyplot(fig, clear_figure=True)
-
-    st.subheader("LSTM (по кнопке)")
-    if st.button("Запустить LSTM"):
-        scaler = MinMaxScaler()
-        scaled = scaler.fit_transform(ts_df[['vehicle_count']])
-        train, test = scaled[:train_size], scaled[train_size:]
-
-        def seq(data, n=3):
-            X,y = [],[]
-            for i in range(len(data)-n):
-                X.append(data[i:i+n]); y.append(data[i+n])
-            return np.array(X), np.array(y)
-
-        X_train_lstm,y_train_lstm = seq(train,3)
-        X_test_lstm,y_test_lstm = seq(test,3)
-
-        model_lstm = Sequential([
-            LSTM(50,activation='relu',input_shape=(3,1)),
-            Dense(1)
-        ])
-        model_lstm.compile(optimizer='adam',loss='mse')
-        model_lstm.fit(X_train_lstm,y_train_lstm,epochs=50,batch_size=1,verbose=0)
-
-        pred_lstm = scaler.inverse_transform(model_lstm.predict(X_test_lstm))
-
-        fig, ax = plt.subplots(figsize=(8,4))
-        ax.plot(ts_test.index[3:], scaler.inverse_transform(y_test_lstm), label="Истинные")
-        ax.plot(ts_test.index[3:], pred_lstm, label="LSTM", linestyle="--")
-        ax.legend()
-        st.pyplot(fig, clear_figure=True)
+    ax.set_title("Сравнение прогнозов моделей")
+    st.pyplot(fig)

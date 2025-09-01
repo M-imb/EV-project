@@ -15,7 +15,8 @@ from statsmodels.tsa.api import ExponentialSmoothing
 from prophet import Prophet
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
+# from tensorflow.keras.layers import LSTM, Dense
+from keras.layers import Dense, LSTM
 import pyarrow
 import warnings
 warnings.filterwarnings('ignore')

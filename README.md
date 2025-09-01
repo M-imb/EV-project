@@ -45,7 +45,7 @@ Dataset contains the following columns, each representing different aspects of t
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/streamlit/app-starter-kit?quickstart=1)
 
-## Section Heading
+## Используемые модели
 
 Учитывая специфику датасета — короткий временной ряд и сильный восходящий тренд — лучшими моделями для прогнозирования будут:
 1.	Facebook Prophet: Эта модель идеально подходит для таких данных. Она специально разработана для временных рядов с выраженным трендом и без ярко выраженной сезонности. Она автоматически определяет точки изменения тренда, что очень важно для экспоненциального роста, который мы видим.

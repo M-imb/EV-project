@@ -1,12 +1,10 @@
 streamlit>=1.26.0
 pandas
 numpy
+matplotlib
 scikit-learn
-category_encoders
-plotly
+catboost
 statsmodels
 prophet
-cmdstanpy
 pyarrow
-catboost
-matplotlib
+tensorflow

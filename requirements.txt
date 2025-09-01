@@ -7,4 +7,3 @@ scikit-learn
 statsmodels
 prophet
 catboost
-prophet

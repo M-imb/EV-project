@@ -14,7 +14,8 @@ from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.api import ExponentialSmoothing
 from prophet import Prophet
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
+# from tensorflow.keras.models import Sequential
+from keras import Sequential
 # from tensorflow.keras.layers import LSTM, Dense
 from keras.layers import Dense, LSTM
 import pyarrow

@@ -64,22 +64,22 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 # --- Вкладка 1 ---
 with tab1:
-    st.subheader("Размерность данных после ETL")
+    st.subheader("Данные после ETL")
     st.write(df.shape)
 
     # Топ-5 марок по продажам вместо head()
     st.subheader("Топ-5 марок по продажам")
     top_manufacturers = df['manufacturer'].value_counts().head(5)
-    fig, ax = plt.subplots(figsize=(6,3))  # меньше размер
+    fig, ax = plt.subplots(figsize=(5,2))  
     ax.bar(top_manufacturers.index, top_manufacturers.values, color="skyblue")
-    ax.set_ylabel("Количество EV")
+    ax.set_ylabel("Количество а/м")
     ax.set_xlabel("Марка")
     st.pyplot(fig, clear_figure=True)
 
     # Динамика регистраций по годам 
     st.subheader("Динамика регистраций по годам")
-    fig, ax = plt.subplots(figsize=(6,3))
-    ts_df['vehicle_count'].plot(ax=ax, marker='o', color="green")
+    fig, ax = plt.subplots(figsize=(5,2))
+    ts_df['vehicle_count'].plot(ax=ax, color="green")
     ax.set_ylabel("Количество EV")
     ax.set_xlabel("Год")
     st.pyplot(fig, clear_figure=True)
@@ -87,7 +87,7 @@ with tab1:
     # Сравнение по типу EV (ev_type)
     st.subheader("Сравнение по типу электромобилей (EV Type)")
     ev_type_counts = df['ev_type'].value_counts()
-    fig, ax = plt.subplots(figsize=(6,3))
+    fig, ax = plt.subplots(figsize=(5,2))
     ax.bar(ev_type_counts.index, ev_type_counts.values, color="orange")
     ax.set_ylabel("Количество EV")
     ax.set_xlabel("Тип EV")
@@ -96,7 +96,7 @@ with tab1:
 # --- Вкладка 2 ---
 with tab2:
     st.subheader("Топ-10 производителей")
-    fig, ax = plt.subplots(figsize=(6,3))
+    fig, ax = plt.subplots(figsize=(5,2))
     manufacturer_counts = df['manufacturer'].value_counts().head(10)
     ax.barh(manufacturer_counts.index, manufacturer_counts.values)
     ax.set_xlabel("Количество")
@@ -144,7 +144,7 @@ with tab5:
         st.warning("Ряд не стационарный")
 
     st.subheader("ACF и PACF")
-    fig, axes = plt.subplots(2,1,figsize=(6,3))
+    fig, axes = plt.subplots(2,1,figsize=(5,2))
     plot_acf(ts_df['vehicle_count'], ax=axes[0])
     plot_pacf(ts_df['vehicle_count'], ax=axes[1])
     plt.tight_layout()
@@ -189,7 +189,7 @@ with tab6:
     st.dataframe(metrics_df.round(2).sort_values(by="R2",ascending=False))
 
     st.subheader("График прогнозов")
-    fig, ax = plt.subplots(figsize=(10,5))
+    fig, ax = plt.subplots(figsize=(5,2))
     ax.plot(ts_df.index, ts_df['vehicle_count'], label="Фактические", color="black")
     for name,pred in preds.items():
         ax.plot(ts_test.index, pred, linestyle="--", label=name)

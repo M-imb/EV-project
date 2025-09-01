@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -90,7 +89,10 @@ with tab1:
 with tab2:
     st.subheader("Топ‑10 производителей")
     fig, ax = plt.subplots()
-    sns.countplot(y='manufacturer', data=df, order=df['manufacturer'].value_counts().index[:10], ax=ax)
+    manufacturer_counts = df['manufacturer'].value_counts().head(10)
+    ax.barh(manufacturer_counts.index, manufacturer_counts.values)
+    ax.set_xlabel("Количество")
+    ax.set_ylabel("Производитель")
     st.pyplot(fig)
 
 # --- Вкладка 3: Модели ---

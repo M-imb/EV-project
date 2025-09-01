@@ -29,7 +29,7 @@ st.title("📊 EV Project - Анализ и прогноз")
 st.write("## Расширенный анализ и моделирование данных")
 
 # --- Загрузка данных ---
-df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow")
+df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow") 
 
 # --- Предварительная обработка и фильтрация ---
 df.rename(columns={

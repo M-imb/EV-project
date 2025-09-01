@@ -20,8 +20,11 @@ This is filler text, please replace this with text for this section.
 ## Further Reading
 
 Dataset contains the following columns, each representing different aspects of the electric vehicle (EV) population in the United States:
+
 •	VIN (1-10): Partial Vehicle Identification Number.
+
 •	County: The county in which the vehicle is registered.
+
 •	City: The city in which the vehicle is registered.
 •	State: The state in which the vehicle is registered. It appears that this dataset may be focused on Washington (WA) state.
 •	Postal Code: The postal code where the vehicle is registered.

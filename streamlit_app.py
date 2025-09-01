@@ -71,7 +71,7 @@ with tab1:
 
     st.subheader("Динамика регистраций по годам")
     fig, ax = plt.subplots(figsize=(8,4))
-    ts_df['vehicle_count'].plot(ax=ax, marker='o')
+    ts_df['vehicle_count'].plot(ax=ax)
     ax.set_ylabel("Количество EV")
     ax.set_xlabel("Год")
     st.pyplot(fig, clear_figure=True)

@@ -24,23 +24,6 @@ st.write("## Расширенный анализ и моделирование �
 # --- Загрузка данных ---
 df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow")
 
-# # --- Загрузка данных ---
-# @st.cache_data
-# def load_data():
-#     url = "https://raw.githubusercontent.com/M-imb/EV-project/master/Electric_Vehicle_Population_Data.parquet"
-#     try:
-#         df = pd.read_parquet(url, engine="pyarrow")
-#         return df
-#     except Exception as e:
-#         st.error(f"Ошибка загрузки данных: {e}")
-#         return pd.DataFrame()
-
-
-# df = load_data()
-# if df.empty:
-#     st.stop()
-
-
 # --- Предварительная обработка и фильтрация ---
 df.columns = df.columns.str.replace(' ', '_')
 df['Base_MSRP'] = pd.to_numeric(df['Base_MSRP'], errors='coerce')
@@ -246,6 +229,8 @@ with tab2:
     # 📋 Таблица
     st.subheader("📋 Таблица прогнозов")
     st.dataframe(predictions_yearly_df.sort_values(['Model', 'Model Year', 'ML_Model']))
+
+
 # --- ВКЛАДКА 3: ПРОГНОЗ (ВРЕМЕННЫЕ РЯДЫ) ---
 with tab3:
     st.header("Прогнозирование цены (Временные ряды)")

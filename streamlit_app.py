@@ -66,20 +66,37 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("Размерность данных после ETL")
     st.write(df.shape)
-    st.subheader("Первые 5 строк")
-    st.dataframe(df.head())
 
+    # Топ-5 марок по продажам вместо head()
+    st.subheader("Топ-5 марок по продажам")
+    top_manufacturers = df['manufacturer'].value_counts().head(5)
+    fig, ax = plt.subplots(figsize=(6,3))  # меньше размер
+    ax.bar(top_manufacturers.index, top_manufacturers.values, color="skyblue")
+    ax.set_ylabel("Количество EV")
+    ax.set_xlabel("Марка")
+    st.pyplot(fig, clear_figure=True)
+
+    # Динамика регистраций по годам 
     st.subheader("Динамика регистраций по годам")
-    fig, ax = plt.subplots(figsize=(8,4))
-    ts_df['vehicle_count'].plot(ax=ax)
+    fig, ax = plt.subplots(figsize=(6,3))
+    ts_df['vehicle_count'].plot(ax=ax, marker='o', color="green")
     ax.set_ylabel("Количество EV")
     ax.set_xlabel("Год")
+    st.pyplot(fig, clear_figure=True)
+
+    # Сравнение по типу EV (ev_type)
+    st.subheader("Сравнение по типу электромобилей (EV Type)")
+    ev_type_counts = df['ev_type'].value_counts()
+    fig, ax = plt.subplots(figsize=(6,3))
+    ax.bar(ev_type_counts.index, ev_type_counts.values, color="orange")
+    ax.set_ylabel("Количество EV")
+    ax.set_xlabel("Тип EV")
     st.pyplot(fig, clear_figure=True)
 
 # --- Вкладка 2 ---
 with tab2:
     st.subheader("Топ-10 производителей")
-    fig, ax = plt.subplots(figsize=(8,4))
+    fig, ax = plt.subplots(figsize=(6,3))
     manufacturer_counts = df['manufacturer'].value_counts().head(10)
     ax.barh(manufacturer_counts.index, manufacturer_counts.values)
     ax.set_xlabel("Количество")
@@ -127,7 +144,7 @@ with tab5:
         st.warning("Ряд не стационарный")
 
     st.subheader("ACF и PACF")
-    fig, axes = plt.subplots(2,1,figsize=(8,4))
+    fig, axes = plt.subplots(2,1,figsize=(6,3))
     plot_acf(ts_df['vehicle_count'], ax=axes[0])
     plot_pacf(ts_df['vehicle_count'], ax=axes[1])
     plt.tight_layout()

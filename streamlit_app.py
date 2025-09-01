@@ -35,7 +35,6 @@ df.rename(columns={
     'Electric Vehicle Type': 'ev_type',
     'Electric Range': 'ev_range',
     'Clean Alternative Fuel Vehicle (CAFV) Eligibility': 'cafv_eligible',
-    'Postal Code': 'postal_code',
     'City': 'city',
     'State': 'state',
     'County': 'county',
@@ -43,7 +42,7 @@ df.rename(columns={
 }, inplace=True)
 
 df.drop(columns=[
-    'VIN (1-10)','Base MSRP','Legislative District','DOL Vehicle ID',
+    'VIN (1-10)','Base MSRP','Legislative District','DOL Vehicle ID', 'Postal Code',
     'Vehicle Location','2020 Census Tract'
 ], inplace=True, errors='ignore')
 

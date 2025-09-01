@@ -182,20 +182,20 @@ with tab3:
     st.write("Топ-3 модели:", ", ".join(top_models))
 
     df_top_models = df[df['model'].isin(top_models)]
-    model_trends = df_top_models.groupby(['Year', 'model']).size().reset_index(name='Count')
+    model_trends = df_top_models.groupby(['year', 'model']).size().reset_index(name='count')
 
-    fig3 = px.line(model_trends, x='Year', y='Count', color='model', title="Динамика продаж топ-3 моделей")
+    fig3 = px.line(model_trends, x='year', y='Count', color='model', title="Динамика продаж топ-3 моделей")
     st.plotly_chart(fig3, use_container_width=True)
 
     # Выбор модели для прогноза
     selected_model = st.selectbox("Выберите модель для прогноза:", top_models)
-    df_model = df_top_models[df_top_models['model'] == selected_model].groupby('Year').size().reset_index(name='Count')
+    df_model = df_top_models[df_top_models['model'] == selected_model].groupby('year').size().reset_index(name='count')
 
     horizon = st.slider("Горизонт прогноза (лет)", 1, 10, 5)
 
     # Prophet
     from prophet import Prophet
-    df_model_prophet = df_model.rename(columns={'Year': 'ds', 'Count': 'y'})
+    df_model_prophet = df_model.rename(columns={'year': 'ds', 'count': 'y'})
     df_model_prophet['ds'] = pd.to_datetime(df_model_prophet['ds'], format='%Y')
     m = Prophet()
     m.fit(df_model_prophet)
@@ -215,11 +215,11 @@ with tab4:
     top_ev_types = df['Electric Vehicle Type'].value_counts().index
     ev_choice = st.selectbox("Выберите тип EV для прогноза:", top_ev_types)
 
-    df_ev = df[df['Electric Vehicle Type'] == ev_choice].groupby('Year').size().reset_index(name='Count')
+    df_ev = df[df['Electric Vehicle Type'] == ev_choice].groupby('year').size().reset_index(name='count')
     horizon_ev = st.slider("Горизонт прогноза (лет)", 1, 15, 7)
 
     if len(df_ev) > 2:
-        df_ev_prophet = df_ev.rename(columns={'Year': 'ds', 'Count': 'y'})
+        df_ev_prophet = df_ev.rename(columns={'year': 'ds', 'count': 'y'})
         df_ev_prophet['ds'] = pd.to_datetime(df_ev_prophet['ds'], format='%Y')
 
         m_ev = Prophet()

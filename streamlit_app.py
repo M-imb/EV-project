@@ -177,7 +177,7 @@ with tab2:
 # --- Вкладка 3 ---
 with tab3:
     st.header("📊 Топ-3 модели по продажам")
-
+    st.write("Колонки в df:", df.columns.tolist())
     top_models = df['Model'].value_counts().head(3).index
     st.write("Топ-3 модели:", ", ".join(top_models))
 

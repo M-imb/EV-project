@@ -9,4 +9,5 @@ prophet
 cmdstanpy
 pyarrow
 catboost
+matplotlib
 seaborn

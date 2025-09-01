@@ -1,1 +1,11 @@
 streamlit>=1.26.0
+pandas
+numpy
+scikit-learn
+category_encoders
+plotly
+statsmodels
+prophet
+cmdstanpy
+pyarrow
+catboost

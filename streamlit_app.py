@@ -156,10 +156,24 @@ X_train_reg_scaled = scaler_reg.fit_transform(X_train_reg)
 X_test_reg_scaled = scaler_reg.transform(X_test_reg)
 
 
-# --- ВКЛАДКА 2: ПРОГНОЗ (РЕГРЕССИЯ) ---
+# --- ВКЛАДКА 2: ПРОГНОЗ (СРАВНЕНИЕ ПО ГОДАМ ТОП-3 А/М) ---
 with tab2:
-    st.header("Прогнозирование цены (Регрессия)")
+    st.header("Прогнозирование продаж по годам (топ‑3 авто)")
 
+    # Определяем топ‑3 авто по суммарным продажам в исторических данных
+    top3_models = (
+        df.groupby('Model')['Sales']
+        .sum()
+        .sort_values(ascending=False)
+        .head(3)
+        .index.tolist()
+    )
+    st.write(f"Топ‑3 модели по продажам: {', '.join(top3_models)}")
+
+    # Фильтруем данные только по этим моделям
+    df_top3 = df[df['Model'].isin(top3_models)]
+
+    # Обучаем модели
     st.subheader("🛠️ Обучение моделей")
     models_reg = {
         'Linear Regression': LinearRegression(),
@@ -167,51 +181,52 @@ with tab2:
         'Random Forest': RandomForestRegressor(random_state=42)
     }
 
-    metrics_reg = []
-    predictions_reg = {}
+    # Здесь предполагается, что X_train_reg_scaled, y_train_reg и т.д. уже подготовлены
+    predictions_yearly = []
 
     for name, model in models_reg.items():
         model.fit(X_train_reg_scaled, y_train_reg)
         y_pred = model.predict(X_test_reg_scaled)
-        rmse = np.sqrt(mean_squared_error(y_test_reg, y_pred))
-        mae = mean_absolute_error(y_test_reg, y_pred)
-        r2 = r2_score(y_test_reg, y_pred)
 
-        metrics_reg.append({'Model': name, 'RMSE': rmse, 'MAE': mae, 'R²': r2})
-        predictions_reg[name] = y_pred
+        # Формируем DataFrame с прогнозом и годом
+        pred_df = pd.DataFrame({
+            'Year': X_test_reg['Year'],  # предполагается, что в X_test_reg есть колонка Year
+            'ModelName': X_test_reg['Model'],  # и колонка Model
+            'PredictedSales': y_pred
+        })
 
-    st.subheader("📊 Визуализация прогнозов")
-    fig_reg = go.Figure()
-    fig_reg.add_trace(go.Scatter(x=y_test_reg.index, y=y_test_reg, mode='markers', name='Истинные значения'))
-    for name, pred in predictions_reg.items():
-        fig_reg.add_trace(go.Scatter(x=y_test_reg.index, y=pred, mode='lines', name=f'Прогноз {name}'))
-    fig_reg.update_layout(
-        title='Сравнение прогнозов моделей регрессии',
-        xaxis_title='Индекс',
-        yaxis_title='Base MSRP'
+        # Оставляем только топ‑3 авто
+        pred_df = pred_df[pred_df['ModelName'].isin(top3_models)]
+
+        # Группируем по году и модели авто
+        yearly_sales = (
+            pred_df.groupby(['Year', 'ModelName'])['PredictedSales']
+            .sum()
+            .reset_index()
+        )
+        yearly_sales['ML_Model'] = name
+        predictions_yearly.append(yearly_sales)
+
+    # Объединяем прогнозы всех моделей
+    predictions_yearly_df = pd.concat(predictions_yearly, ignore_index=True)
+
+    # 📊 Визуализация: группированный столбчатый график
+    st.subheader("📊 Сравнение прогнозов по годам для топ‑3 авто")
+    fig_yearly = px.bar(
+        predictions_yearly_df,
+        x='Year',
+        y='PredictedSales',
+        color='ML_Model',
+        barmode='group',
+        facet_row='ModelName',
+        title='Прогноз годовых продаж (топ‑3 авто)',
+        labels={'PredictedSales': 'Продажи', 'Year': 'Год'}
     )
-    st.plotly_chart(fig_reg, use_container_width=True)
+    st.plotly_chart(fig_yearly, use_container_width=True)
 
-    st.subheader("📋 Таблица метрик")
-    metrics_df_reg = pd.DataFrame(metrics_reg)
-    st.table(metrics_df_reg)
-
-    st.subheader("✨ Выводы")
-    best_model_r2 = metrics_df_reg.loc[metrics_df_reg['R²'].idxmax()]
-    st.write(f"Лучшая модель по метрике R²: **{best_model_r2['Model']}** с R² = {best_model_r2['R²']:.2f}")
-    st.write("CatBoost и Random Forest часто превосходят линейную регрессию, улавливая нелинейные зависимости.")
-
-
-# --- Подготовка данных для временных рядов ---
-df_ts = df_filtered.groupby('Model_Year')['Base_MSRP'].mean().reset_index()
-df_ts['Model_Year'] = pd.to_datetime(df_ts['Model_Year'], format='%Y')
-df_ts.set_index('Model_Year', inplace=True)
-ts = df_ts['Base_MSRP']
-
-# Разделение данных
-train_ts = ts[:'2020']
-test_ts = ts['2021':]
-
+    # 📋 Таблица с прогнозами
+    st.subheader("📋 Таблица прогнозов")
+    st.dataframe(predictions_yearly_df.sort_values(['ModelName', 'Year', 'ML_Model']))
 
 # --- ВКЛАДКА 3: ПРОГНОЗ (ВРЕМЕННЫЕ РЯДЫ) ---
 with tab3:

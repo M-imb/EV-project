@@ -115,7 +115,7 @@ with tab2:
     fig, ax = plt.subplots(figsize=(6,3))
     for brand in top3_brands:
         subset = brand_data[brand_data['manufacturer']==brand]
-        ax.plot(subset['year'], subset['sales'], marker="o", label=brand)
+        ax.plot(subset['year'], subset['sales'], label=brand)
     ax.set_title("Исторические продажи топ-3 марок")
     ax.legend()
     st.pyplot(fig, clear_figure=True)
@@ -146,8 +146,8 @@ with tab2:
             future_pred = lr.predict(future_years.reshape(-1,1))
 
             fig2, ax2 = plt.subplots(figsize=(6,3))
-            ax2.plot(subset["ds"].dt.year, y, marker="o", label="Факт")
-            ax2.plot(future_years, future_pred, marker="x", linestyle="--", label="Прогноз")
+            ax2.plot(subset["ds"].dt.year, y, label="Факт")
+            ax2.plot(future_years, future_pred, linestyle="--", label="Прогноз")
             ax2.legend(); ax2.set_title(f"Прогноз продаж {brand}")
             st.pyplot(fig2, clear_figure=True)
 
@@ -164,8 +164,8 @@ with tab2:
             future_pred = rf.predict(future_years.reshape(-1,1))
 
             fig3, ax3 = plt.subplots(figsize=(6,3))
-            ax3.plot(subset["ds"].dt.year, y, marker="o", label="Факт")
-            ax3.plot(future_years, future_pred, marker="x", linestyle="--", label="Прогноз")
+            ax3.plot(subset["ds"].dt.year, y, label="Факт")
+            ax3.plot(future_years, future_pred, linestyle="--", label="Прогноз")
             ax3.legend(); ax3.set_title(f"Прогноз продаж {brand}")
             st.pyplot(fig3, clear_figure=True)
 
@@ -228,7 +228,7 @@ with tab4:
         forecast_ev = m_ev.predict(future_ev)
 
         fig_ev = px.line(forecast_ev, x='ds', y='yhat', title=f"Прогноз для {ev_choice}")
-        fig_ev.add_scatter(x=df_ev_prophet['ds'], y=df_ev_prophet['y'], mode='lines+markers', name='История')
+        fig_ev.add_scatter(x=df_ev_prophet['ds'], y=df_ev_prophet['y'], mode='lines', name='История')
         st.plotly_chart(fig_ev, use_container_width=True)
     else:
         st.warning("Недостаточно данных для прогноза.")

@@ -9,3 +9,4 @@ prophet
 cmdstanpy
 pyarrow
 catboost
+seaborn

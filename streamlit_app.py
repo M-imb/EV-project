@@ -9,7 +9,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from catboost import CatBoostRegressor
 from statsmodels.tsa.seasonal import seasonal_decompose
-from statsmodels.tsa.stattools import adfuller, acf, pacf
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.api import ExponentialSmoothing
 from prophet import Prophet
@@ -27,7 +28,7 @@ st.title("📊 EV Project - Анализ и прогноз")
 st.write("## Расширенный анализ и моделирование данных")
 
 # --- Загрузка данных ---
-df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow") 
+df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow")
 # --- Предварительная обработка и фильтрация ---
 df.rename(columns={
     'Model Year': 'year',

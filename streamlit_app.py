@@ -22,20 +22,7 @@ st.title("📊 EV Project - Анализ и прогноз")
 st.write("## Расширенный анализ и моделирование данных")
 
 # --- Загрузка данных ---
-@st.cache_data
-def load_data():
-url = "https://raw.githubusercontent.com/M-imb/EV_final-project/master/Electric_Vehicle_Population_Data.parquet"
-try:
-df = pd.read_parquet(url, engine="pyarrow")
-return df
-except Exception as e:
-st.error(f"Ошибка загрузки данных: {e}")
-return pd.DataFrame()
-
-df = load_data()
-
-if df.empty:
-st.stop()
+df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow")
 
 # --- Предварительная обработка и фильтрация ---
 df.columns = df.columns.str.replace(' ', '_')

@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestRegressor
 import category_encoders as ce
 import plotly.express as px
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 from catboost import CatBoostRegressor
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller, acf, pacf

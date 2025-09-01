@@ -22,42 +22,45 @@ st.title("📊 EV Project - Анализ и прогноз")
 st.write("## Расширенный анализ и моделирование данных")
 
 # --- Загрузка данных ---
+st.set_page_config(page_title="📊 Аналитика электромобилей", layout="wide")
+st.title("📊 EV Project - Анализ и прогноз")
+st.write("## Расширенный анализ и моделирование данных")
+
+# --- Загрузка данных ---
 df = pd.read_parquet("Electric_Vehicle_Population_Data.parquet", engine="pyarrow")
 
 # --- Предварительная обработка и фильтрация ---
-    df.rename(columns={
-        'Model Year': 'year',
-        'Make': 'manufacturer',
-        'Model': 'model',
-        'Electric Vehicle Type': 'ev_type',
-        'Electric Range': 'ev_range',
-        'Clean Alternative Fuel Vehicle (CAFV) Eligibility': 'cafv_eligible',
-        'Postal Code': 'postal_code',
-        'City': 'city',
-        'State': 'state',
-        'County': 'county',
-        'Electric Utility': 'utility'
-    }, inplace=True)
+df.rename(columns={
+    'Model Year': 'year',
+    'Make': 'manufacturer',
+    'Model': 'model',
+    'Electric Vehicle Type': 'ev_type',
+    'Electric Range': 'ev_range',
+    'Clean Alternative Fuel Vehicle (CAFV) Eligibility': 'cafv_eligible',
+    'Postal Code': 'postal_code',
+    'City': 'city',
+    'State': 'state',
+    'County': 'county',
+    'Electric Utility': 'utility'
+}, inplace=True)
 
-    df.drop(columns=[
-        'VIN (1-10)',
-        'Base MSRP',
-        'Legislative District',
-        'DOL Vehicle ID',
-        'Vehicle Location',
-        '2020 Census Tract'
-    ], inplace=True, errors='ignore')
+df.drop(columns=[
+    'VIN (1-10)',
+    'Base MSRP',
+    'Legislative District',
+    'DOL Vehicle ID',
+    'Vehicle Location',
+    '2020 Census Tract'
+], inplace=True, errors='ignore')
 
-    df['year'] = pd.to_numeric(df['year'], errors='coerce')
-    df.dropna(subset=['year'], inplace=True)
-    df['year'] = df['year'].astype(int)
+df['year'] = pd.to_numeric(df['year'], errors='coerce')
+df.dropna(subset=['year'], inplace=True)
+df['year'] = df['year'].astype(int)
 
-    return df
-
-df = load_data()
 if df.empty:
     st.error("Нет данных для отображения")
     st.stop()
+    
 
 # --- Временной ряд ---
 ts_df = df.groupby('year').size().reset_index(name='vehicle_count')

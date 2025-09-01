@@ -284,4 +284,13 @@ with tab3:
                                          mode='lines', name='Обучающая выборка'))
         fig_prophet.add_trace(go.Scatter(x=df_prophet['ds'][-len(test_ts):], y=df_prophet['y'][-len(test_ts):],
                                          mode='lines', name='Тестовая выборка'))
-        fig_prophet.add_trace(go.Scatter(x=forecast['ds'][-len(test_ts):],
+        fig_prophet.add_trace(go.Scatter(x=forecast['ds'][-len(test_ts):], y=forecast['yhat'][-len(test_ts):],
+                                         mode='lines', name='Прогноз Prophet'))
+        fig_prophet.update_layout(title='Прогноз Prophet', xaxis_title='Год', yaxis_title='Base MSRP')
+        st.plotly_chart(fig_prophet, use_container_width=True)
+
+        predictions_prophet = forecast['yhat'][-len(test_ts):].values
+        rmse_prophet = np.sqrt(mean_squared_error(test_ts, predictions_prophet))
+        st.write(f'RMSE для Prophet: {rmse_prophet:.2f}')
+    except Exception as e:
+        st.error(f"Ошибка при построении модели Prophet: {e}")

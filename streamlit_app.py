@@ -184,7 +184,7 @@ with tab3:
     df_top_models = df[df['model'].isin(top_models)]
     model_trends = df_top_models.groupby(['year', 'model']).size().reset_index(name='count')
 
-    fig3 = px.line(model_trends, x='year', y='Count', color='model', title="Динамика продаж топ-3 моделей")
+    fig3 = px.line(model_trends, x='year', y='count', color='model', title="Динамика продаж топ-3 моделей")
     st.plotly_chart(fig3, use_container_width=True)
 
     # Выбор модели для прогноза
